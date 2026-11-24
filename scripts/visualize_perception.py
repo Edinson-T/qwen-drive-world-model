@@ -4,7 +4,7 @@ Example:
     python scripts/visualize_perception.py \
         --frames data/demo/perception \
         --predictions outputs/perception_demo \
-        --output outputs/perception_demo/vis
+        --output outputs/visualizations/perception/demo
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--score-threshold", type=float, default=0.25)
     args = parser.parse_args()
-    output = args.output or (args.predictions / "vis")
+    output = args.output or Path("outputs/visualizations/perception/demo")
     output.mkdir(parents=True, exist_ok=True)
 
     for frame_dir in sorted(p for p in args.frames.iterdir() if p.is_dir()):

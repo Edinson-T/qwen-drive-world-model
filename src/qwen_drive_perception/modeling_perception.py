@@ -25,6 +25,7 @@ import copy
 
 import torch
 from torch import nn
+import torch.nn.functional as F
 from transformers import PreTrainedModel
 
 from .configuration_perception import (
@@ -45,6 +46,53 @@ from .heads import BEVFormerHead
 from .view_transform import DepthNet, Uni3DVoxelPoolDepth
 
 __all__ = ["QwenDrivePerception", "BEVFormerModelV2"]
+
+
+def _compress_feature_map(
+    feature: torch.Tensor,
+    *,
+    bev_h: int,
+    bev_w: int,
+    output_hw: tuple[int, int],
+    output_channels: int | None,
+) -> torch.Tensor:
+    """Convert a BEV token/map tensor into ``[B, C, H, W]`` float32."""
+    if feature.ndim == 3:
+        if feature.shape[1] == bev_h * bev_w:
+            batch, length, channels = feature.shape
+        elif feature.shape[0] == bev_h * bev_w:
+            # The detection decoder returns [sequence, batch, channels].
+            feature = feature.transpose(0, 1)
+            batch, length, channels = feature.shape
+        else:
+            raise ValueError(
+                f"cannot interpret BEV feature shape {tuple(feature.shape)} "
+                f"for a {bev_h}x{bev_w} grid"
+            )
+        if length != bev_h * bev_w:
+            raise ValueError(
+                f"expected {bev_h * bev_w} BEV tokens, got {length} tokens "
+                f"with shape {tuple(feature.shape)}"
+            )
+        feature = feature.view(batch, bev_h, bev_w, channels).permute(0, 3, 1, 2)
+    elif feature.ndim != 4:
+        raise ValueError(f"BEV feature must be 3D or 4D, got {tuple(feature.shape)}")
+
+    feature = F.adaptive_avg_pool2d(feature.float(), output_hw)
+    if output_channels is not None and feature.shape[1] != output_channels:
+        in_channels = feature.shape[1]
+        if in_channels % output_channels:
+            raise ValueError(
+                f"cannot reduce {in_channels} channels to {output_channels} without "
+                "a learned projection"
+            )
+        feature = feature.view(
+            feature.shape[0],
+            output_channels,
+            in_channels // output_channels,
+            *feature.shape[-2:],
+        ).mean(dim=2)
+    return feature
 
 
 class BEVFormerModelV2(nn.Module):
@@ -224,12 +272,25 @@ class QwenDrivePerception(PreTrainedModel):
     # ---------------------------------------------------------------- public
 
     @torch.no_grad()
-    def infer(self, inputs: dict, img_metas: dict) -> dict:
+    def infer(
+        self,
+        inputs: dict,
+        img_metas: dict,
+        *,
+        return_latent: bool = False,
+        latent_size: tuple[int, int] | None = (16, 32),
+        latent_channels: int | None = 128,
+    ) -> dict:
         """One perception forward: 3D boxes, occupancy and map segmentation.
 
         ``inputs`` is the processor output (``input_ids``, ``pixel_values``,
         ``image_grid_thw``); ``img_metas`` carries ``lidar2img``, ``lidar2ego``,
         ``img_shape``, ``dataset_type`` and ``cam_order``.
+
+        With ``return_latent=True`` the decoded outputs are augmented with a
+        spatially compressed BEV embedding. The default compression is
+        ``16 x 32 x 128`` so callers can cache a compact world-model state without
+        writing the full ``200 x 200 x 256`` map to disk.
         """
         if self._vlm is None:
             raise RuntimeError("call attach(vlm, processor) before infer()")
@@ -287,10 +348,32 @@ class QwenDrivePerception(PreTrainedModel):
         det = self.bev_modeling.head.get_bboxes(outs, [img_metas])[0]
         occ = self.bev_modeling.head.get_occ(outs, [img_metas])
         seg = self.bev_modeling.head.get_map_seg(outs, [img_metas])
-        return {
+        result = {
             "boxes": det["boxes"],
             "scores": det["scores"],
             "labels": det["labels"],
             "occ": occ[0].byte().cpu().numpy(),
             "map": seg[0].byte().cpu().numpy(),
         }
+        if return_latent:
+            bev_h = self.bev_modeling.head.bev_h
+            bev_w = self.bev_modeling.head.bev_w
+            output_hw = latent_size or (bev_h, bev_w)
+            bev = _compress_feature_map(
+                outs["bev_embed"],
+                bev_h=bev_h,
+                bev_w=bev_w,
+                output_hw=output_hw,
+                output_channels=latent_channels,
+            )
+            result["bev_embed"] = bev[0].to(torch.float16).cpu().numpy()
+            result["bev_feat"] = _compress_feature_map(
+                outs["bev_ego_feat_2d"],
+                bev_h=bev_h,
+                bev_w=bev_w,
+                output_hw=output_hw,
+                output_channels=latent_channels,
+            )[0].to(torch.float16).cpu().numpy()
+            result["latent_shape"] = tuple(bev.shape)
+            result["latent_dtype"] = "float16"
+        return result

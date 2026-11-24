@@ -293,6 +293,7 @@ class BEVFormerHead(nn.Module):
 
         outs = {
             "bev_embed": bev_embed,
+            "bev_ego_feat_2d": bev_ego_feat_2d,
             "all_cls_scores": torch.stack(outputs_classes),
             "all_bbox_preds": torch.stack(outputs_coords),
             "occ_pred": occ_pred,

@@ -18,6 +18,8 @@ dependencies = [
   "flash-linear-attention>=0.5.1",
   "opencv-python>=4.10.0",
   "matplotlib>=3.8.0",
+  "scipy>=1.10",
+  "protobuf>=5,<7",
   "tqdm>=4.66",
 ]
 

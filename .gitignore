@@ -1,0 +1,100 @@
+# Local data and read-only mounts. Already tracked upstream demo files are unaffected.
+/.waymo_readonly/
+/data/
+/datasets/
+/Qwen-Drive-1.0-4B/
+
+# Training, evaluation and visualization outputs. Curate publishable figures into assets/.
+/outputs/
+checkpoints/
+weights/
+wandb/
+.wandb/
+mlruns/
+lightning_logs/
+tensorboard/
+events.out.tfevents.*
+*.log
+*.log.*
+
+# Model weights and dataset/cache arrays, wherever a script writes them.
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.bin
+*.npy
+*.npz
+*.parquet
+*.arrow
+*.h5
+*.hdf5
+*.tfrecord
+*.tfrecord-*
+*.tfrecords
+*.tfrecords-*
+
+# Downloaded reference repositories and papers; keep our research source and notes.
+/.wote_code/
+/.wote_paper_audit.txt
+/third_party/
+/papers/
+/research/literature_scan_2026-11/code/
+/research/literature_scan_2026-11/cache/
+
+# Python environments, caches and compiled CUDA/C++ extensions.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.cache/
+.torch_extensions/
+torch_extensions/
+.mpl/
+build/
+dist/
+*.so
+*.o
+*.a
+.coverage
+.coverage.*
+htmlcov/
+
+# Credentials, machine-specific editor/agent settings and local handoff notes.
+/.aws/
+/.codex/
+/.agents/
+.vscode/
+.idea/
+.env
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+*.p12
+*.pfx
+/Note.md
+
+# Local installers, scratch images and operating-system/editor files.
+/cuda_*.run*
+/demo.png
+/image.png
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Intentionally retain src/, scripts/, tools/, lidar_supervision/, research source,
+# requirements/configuration files, LICENSE, documentation and curated assets/.

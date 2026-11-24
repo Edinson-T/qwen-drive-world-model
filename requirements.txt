@@ -13,4 +13,6 @@ causal-conv1d==1.6.2.post1
 flash-linear-attention==0.5.1
 opencv-python==5.0.0.93
 matplotlib==3.10.7
+scipy==1.18.1
+protobuf==6.33.6
 tqdm==4.67.1
