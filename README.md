@@ -1,3 +1,4 @@
+本仓库的 BEV 世界模型、显式对象运动预测与轨迹排序实验见 [世界模型实验索引](research/world_model/README.md)。
 
 <img src="assets/logo.png" alt="Qwen-Drive" width="420">
 </p>
